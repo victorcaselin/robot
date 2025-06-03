@@ -4,7 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { useSimulador } from '../context/SimuladorContext';
 
 /**
- * Componente para la visualización 3D del robot
+ * Componente para la visualización 3D del robot cilíndrico
  */
 export const VisualizadorRobot: React.FC = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -12,19 +12,19 @@ export const VisualizadorRobot: React.FC = () => {
     articulaciones, 
     parametros,
     mostrarWorkspace,
-    coordenadas
   } = useSimulador();
   
-  // Refs para mantener las instancias de Three.js
+  // Referencias para mantener las instancias de Three.js
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   
-  // Refs para los elementos del robot
-  const baseRef = useRef<THREE.Mesh | null>(null);
-  const columnRef = useRef<THREE.Mesh | null>(null);
-  const brazoRef = useRef<THREE.Mesh | null>(null);
+  // Referencias para los grupos y elementos del robot
+  const robotRef = useRef<THREE.Group | null>(null);
+  const baseGiratoriaCilindroRef = useRef<THREE.Mesh | null>(null);
+  const ejeVerticalRef = useRef<THREE.Group | null>(null);
+  const brazoExtensibleRef = useRef<THREE.Group | null>(null);
   const workspaceRef = useRef<THREE.Mesh | null>(null);
   
   // Inicialización de Three.js
@@ -51,6 +51,7 @@ export const VisualizadorRobot: React.FC = () => {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight);
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     canvasRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
     
@@ -62,16 +63,34 @@ export const VisualizadorRobot: React.FC = () => {
     controls.maxDistance = 30;
     controlsRef.current = controls;
     
-    // Luces
+    // Iluminación
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
     
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(5, 10, 7);
     directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 1024;
-    directionalLight.shadow.mapSize.height = 1024;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    directionalLight.shadow.camera.near = 0.5;
+    directionalLight.shadow.camera.far = 50;
+    directionalLight.shadow.camera.left = -10;
+    directionalLight.shadow.camera.right = 10;
+    directionalLight.shadow.camera.top = 10;
+    directionalLight.shadow.camera.bottom = -10;
     scene.add(directionalLight);
+    
+    // Plano del suelo
+    const planoGeometria = new THREE.PlaneGeometry(20, 20);
+    const planoMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xcccccc,
+      roughness: 0.8,
+      metalness: 0.2
+    });
+    const plano = new THREE.Mesh(planoGeometria, planoMaterial);
+    plano.rotation.x = -Math.PI / 2;
+    plano.receiveShadow = true;
+    scene.add(plano);
     
     // Rejilla y ejes para referencia
     const gridHelper = new THREE.GridHelper(20, 20, 0x555555, 0x888888);
@@ -80,19 +99,27 @@ export const VisualizadorRobot: React.FC = () => {
     const axesHelper = new THREE.AxesHelper(5);
     scene.add(axesHelper);
     
-    // Crear las partes iniciales del robot
+    // Crear el modelo del robot
     crearModeloRobot(scene);
     
     // Espacio de trabajo (invisible inicialmente)
-    const workspaceGeometry = new THREE.SphereGeometry(parametros.longitudBrazo, 32, 32);
+    const workspaceGeometry = new THREE.CylinderGeometry(
+      parametros.longitudBrazo,
+      parametros.longitudBrazo,
+      parametros.alturaMaxima,
+      32,
+      1,
+      true
+    );
     const workspaceMaterial = new THREE.MeshBasicMaterial({ 
       color: 0x3498db, 
       transparent: true, 
-      opacity: 0.2,
+      opacity: 0.15,
+      side: THREE.DoubleSide,
       wireframe: true
     });
     const workspace = new THREE.Mesh(workspaceGeometry, workspaceMaterial);
-    workspace.position.y = parametros.longitudBase;
+    workspace.position.y = parametros.alturaMaxima / 2;
     workspace.visible = false;
     scene.add(workspace);
     workspaceRef.current = workspace;
@@ -118,66 +145,149 @@ export const VisualizadorRobot: React.FC = () => {
     };
   }, []);
   
-  // Función para crear el modelo del robot
+  /**
+   * Crea el modelo 3D del robot cilíndrico
+   */
   const crearModeloRobot = (scene: THREE.Scene) => {
-    // Base del robot
-    const baseGeometry = new THREE.CylinderGeometry(
-      parametros.radioBase, 
-      parametros.radioBase, 
-      0.5, 
+    // Grupo principal del robot
+    const robotGrupo = new THREE.Group();
+    robotRef.current = robotGrupo;
+    scene.add(robotGrupo);
+    
+    // Base fija
+    const baseGeometria = new THREE.CylinderGeometry(
+      parametros.radioBase * 1.2,
+      parametros.radioBase * 1.4,
+      0.3,
       32
     );
-    const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
-    const base = new THREE.Mesh(baseGeometry, baseMaterial);
-    base.position.y = 0.25;
-    base.castShadow = true;
-    base.receiveShadow = true;
-    scene.add(base);
-    baseRef.current = base;
+    const baseMaterial = new THREE.MeshStandardMaterial({
+      color: 0x2c3e50,
+      roughness: 0.7,
+      metalness: 0.3
+    });
+    const baseFija = new THREE.Mesh(baseGeometria, baseMaterial);
+    baseFija.position.y = 0.15;
+    baseFija.castShadow = true;
+    baseFija.receiveShadow = true;
+    robotGrupo.add(baseFija);
     
-    // Columna vertical
-    const columnGeometry = new THREE.CylinderGeometry(0.5, 0.5, parametros.longitudBase, 32);
-    const columnMaterial = new THREE.MeshStandardMaterial({ color: 0x666666 });
-    const column = new THREE.Mesh(columnGeometry, columnMaterial);
-    column.position.y = parametros.longitudBase / 2 + 0.5;
-    column.castShadow = true;
-    column.receiveShadow = true;
-    scene.add(column);
-    columnRef.current = column;
+    // Base giratoria
+    const baseGiratoriaGrupo = new THREE.Group();
+    robotGrupo.add(baseGiratoriaGrupo);
+    
+    const baseGiratoriaGeometria = new THREE.CylinderGeometry(
+      parametros.radioBase,
+      parametros.radioBase,
+      0.4,
+      32
+    );
+    const baseGiratoriaMaterial = new THREE.MeshStandardMaterial({
+      color: 0x3498db,
+      roughness: 0.5,
+      metalness: 0.5
+    });
+    const baseGiratoriaCilindro = new THREE.Mesh(
+      baseGiratoriaGeometria,
+      baseGiratoriaMaterial
+    );
+    baseGiratoriaCilindro.position.y = 0.5;
+    baseGiratoriaCilindro.castShadow = true;
+    baseGiratoriaCilindro.receiveShadow = true;
+    baseGiratoriaGrupo.add(baseGiratoriaCilindro);
+    baseGiratoriaCilindroRef.current = baseGiratoriaCilindro;
+    
+    // Eje vertical (columna)
+    const ejeVerticalGrupo = new THREE.Group();
+    ejeVerticalGrupo.position.y = 0.7;
+    baseGiratoriaGrupo.add(ejeVerticalGrupo);
+    ejeVerticalRef.current = ejeVerticalGrupo;
+    
+    const columnaGeometria = new THREE.CylinderGeometry(0.2, 0.2, 1, 16);
+    const columnaMaterial = new THREE.MeshStandardMaterial({
+      color: 0x95a5a6,
+      roughness: 0.4,
+      metalness: 0.6
+    });
+    const columna = new THREE.Mesh(columnaGeometria, columnaMaterial);
+    columna.position.y = 0.5;
+    columna.castShadow = true;
+    columna.receiveShadow = true;
+    ejeVerticalGrupo.add(columna);
     
     // Brazo extensible
-    const brazoGeometry = new THREE.BoxGeometry(0.5, 0.5, 1);
-    const brazoMaterial = new THREE.MeshStandardMaterial({ color: 0x3498db });
-    const brazo = new THREE.Mesh(brazoGeometry, brazoMaterial);
-    brazo.position.y = parametros.longitudBase + 0.5;
+    const brazoGrupo = new THREE.Group();
+    brazoGrupo.position.y = 1;
+    ejeVerticalGrupo.add(brazoGrupo);
+    brazoExtensibleRef.current = brazoGrupo;
+    
+    // Articulación del brazo
+    const articulacionGeometria = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+    const articulacionMaterial = new THREE.MeshStandardMaterial({
+      color: 0xe74c3c,
+      roughness: 0.5,
+      metalness: 0.5
+    });
+    const articulacion = new THREE.Mesh(articulacionGeometria, articulacionMaterial);
+    articulacion.castShadow = true;
+    articulacion.receiveShadow = true;
+    brazoGrupo.add(articulacion);
+    
+    // Brazo extensible
+    const brazoGeometria = new THREE.BoxGeometry(0.2, 0.2, 1);
+    const brazoMaterial = new THREE.MeshStandardMaterial({
+      color: 0x3498db,
+      roughness: 0.4,
+      metalness: 0.6
+    });
+    const brazo = new THREE.Mesh(brazoGeometria, brazoMaterial);
+    brazo.position.z = 0.5;
     brazo.castShadow = true;
     brazo.receiveShadow = true;
-    scene.add(brazo);
-    brazoRef.current = brazo;
+    brazoGrupo.add(brazo);
+    
+    // Efector final
+    const efectorGeometria = new THREE.SphereGeometry(0.1, 16, 16);
+    const efectorMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf1c40f,
+      roughness: 0.3,
+      metalness: 0.7
+    });
+    const efector = new THREE.Mesh(efectorGeometria, efectorMaterial);
+    efector.position.z = 1;
+    efector.castShadow = true;
+    efector.receiveShadow = true;
+    brazoGrupo.add(efector);
   };
   
   // Actualiza el modelo del robot cuando cambian las articulaciones
   useEffect(() => {
-    if (!baseRef.current || !columnRef.current || !brazoRef.current) return;
+    if (!baseGiratoriaCilindroRef.current || !ejeVerticalRef.current || !brazoExtensibleRef.current) return;
     
     // Rotación de la base (theta)
     const theta = articulaciones[0].valorActual * Math.PI / 180;
-    baseRef.current.rotation.y = theta;
+    baseGiratoriaCilindroRef.current.rotation.y = theta;
     
-    // Posición vertical (z)
+    // Elevación vertical (z)
     const z = articulaciones[1].valorActual;
-    columnRef.current.scale.y = (parametros.longitudBase + z) / parametros.longitudBase;
-    columnRef.current.position.y = (parametros.longitudBase + z) / 2;
+    if (ejeVerticalRef.current) {
+      ejeVerticalRef.current.scale.y = z + 1; // +1 para mantener una altura mínima
+      ejeVerticalRef.current.position.y = 0.7 + z / 2;
+    }
     
     // Extensión del brazo (r)
     const r = articulaciones[2].valorActual;
-    
-    // Actualizar posición del brazo
-    brazoRef.current.position.y = parametros.longitudBase + z;
-    brazoRef.current.scale.z = r;
-    brazoRef.current.position.z = r / 2;
-    brazoRef.current.rotation.y = theta;
-    
+    if (brazoExtensibleRef.current) {
+      brazoExtensibleRef.current.position.y = z;
+      brazoExtensibleRef.current.children.forEach((child, index) => {
+        if (index === 1) { // El brazo extensible
+          (child as THREE.Mesh).scale.z = r;
+          (child as THREE.Mesh).position.z = r / 2;
+        } else if (index === 2) { // El efector final
+          child.position.z = r;
+        }
+      });
+    }
   }, [articulaciones, parametros]);
   
   // Actualiza la visualización del espacio de trabajo
@@ -185,13 +295,20 @@ export const VisualizadorRobot: React.FC = () => {
     if (!workspaceRef.current) return;
     
     workspaceRef.current.visible = mostrarWorkspace;
-    workspaceRef.current.position.y = parametros.longitudBase;
-    (workspaceRef.current.geometry as THREE.SphereGeometry).dispose();
-    workspaceRef.current.geometry = new THREE.SphereGeometry(parametros.longitudBrazo, 32, 16);
+    const newGeometry = new THREE.CylinderGeometry(
+      parametros.longitudBrazo,
+      parametros.longitudBrazo,
+      parametros.alturaMaxima,
+      32,
+      1,
+      true
+    );
+    workspaceRef.current.geometry.dispose();
+    workspaceRef.current.geometry = newGeometry;
     
   }, [mostrarWorkspace, parametros]);
   
-  // Actualización del tamaño del canvas cuando cambia el tamaño de la ventana
+  // Actualización del tamaño del canvas
   useEffect(() => {
     const handleResize = () => {
       if (!canvasRef.current || !cameraRef.current || !rendererRef.current) return;
