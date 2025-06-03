@@ -20,18 +20,18 @@ interface SimuladorContextType {
   reiniciarSimulador: () => void;
 }
 
-// Valores iniciales
+// Valores iniciales ajustados según especificaciones
 const parametrosIniciales: ParametrosCinematica = {
-  longitudBase: 2,
-  longitudBrazo: 3,
-  radioBase: 1,
-  alturaMaxima: 5
+  longitudBase: 0.3, // Altura mínima del eje vertical
+  longitudBrazo: 1.7, // Extensión máxima del brazo
+  radioBase: 0.4, // Radio de la base
+  alturaMaxima: 1.3 // Altura máxima del eje vertical
 };
 
 const articulacionesIniciales: Articulacion[] = [
-  new Articulacion(0, 'rotacional', 0, -180, 180), // Base rotacional (theta)
-  new Articulacion(1, 'lineal', 0, 0, 5),          // Elevación (z)
-  new Articulacion(2, 'lineal', 1, 0, 3)           // Extensión (r)
+  new Articulacion(0, 'rotacional', 0, -180, 180),    // Base rotacional (theta)
+  new Articulacion(1, 'lineal', 0.3, 0.3, 1.3),      // Elevación (z)
+  new Articulacion(2, 'lineal', 0.3, 0.3, 1.7)       // Extensión (r)
 ];
 
 // Crear contexto
@@ -56,7 +56,7 @@ export const SimuladorProvider = ({ children }: { children: ReactNode }) => {
     [0, 0, 1, 0],
     [0, 0, 0, 1]
   ]);
-  const [coordenadas, setCoordenadas] = useState<Coordenadas>(new Coordenadas(1, 0, 0));
+  const [coordenadas, setCoordenadas] = useState<Coordenadas>(new Coordenadas(0.3, 0, 0.3));
   const [mostrarMatrices, setMostrarMatrices] = useState(false);
   const [mostrarCoordenadas, setMostrarCoordenadas] = useState(true);
   const [mostrarWorkspace, setMostrarWorkspace] = useState(false);
@@ -72,25 +72,20 @@ export const SimuladorProvider = ({ children }: { children: ReactNode }) => {
       return nuevasArticulaciones;
     });
     
-    // Aquí se calcularían las nuevas coordenadas y matriz
     calcularCinematicaDirecta();
   };
 
   // Calcular cinemática directa
   const calcularCinematicaDirecta = () => {
-    // Obtener valores de articulaciones
-    const theta = articulaciones[0].valorActual * Math.PI / 180; // Convertir a radianes
+    const theta = articulaciones[0].valorActual * Math.PI / 180;
     const z = articulaciones[1].valorActual;
     const r = articulaciones[2].valorActual;
     
-    // Calcular posición del efector final (coordenadas cilíndricas a cartesianas)
     const x = r * Math.cos(theta);
     const y = r * Math.sin(theta);
     
-    // Actualizar coordenadas
     setCoordenadas(new Coordenadas(x, y, z));
     
-    // Calcular matriz de transformación homogénea
     const nuevaMatriz = [
       [Math.cos(theta), -Math.sin(theta), 0, x],
       [Math.sin(theta), Math.cos(theta), 0, y],
@@ -101,33 +96,24 @@ export const SimuladorProvider = ({ children }: { children: ReactNode }) => {
     setMatrizDirecta(nuevaMatriz);
   };
 
-  // Alternar visualización de matrices
   const toggleMatrices = () => setMostrarMatrices(!mostrarMatrices);
-  
-  // Alternar visualización de coordenadas
   const toggleCoordenadas = () => setMostrarCoordenadas(!mostrarCoordenadas);
-  
-  // Alternar visualización del espacio de trabajo
   const toggleWorkspace = () => setMostrarWorkspace(!mostrarWorkspace);
   
-  // Actualizar parámetros cinemáticos
   const actualizarParametros = (nuevosParametros: Partial<ParametrosCinematica>) => {
     setParametros(prevParams => ({
       ...prevParams,
       ...nuevosParametros
     }));
-    // Recalcular el modelo tras actualizar parámetros
     calcularCinematicaDirecta();
   };
   
-  // Reiniciar el simulador a los valores iniciales
   const reiniciarSimulador = () => {
     setArticulaciones(articulacionesIniciales.map(a => new Articulacion(a.id, a.tipo, a.valorActual, a.limiteInferior, a.limiteSuperior)));
     setParametros({...parametrosIniciales});
     calcularCinematicaDirecta();
   };
 
-  // Calcular la cinemática inicial al montar el componente
   React.useEffect(() => {
     calcularCinematicaDirecta();
   }, []);

@@ -22,7 +22,7 @@ export const VisualizadorRobot: React.FC = () => {
   
   // Referencias para los grupos y elementos del robot
   const robotRef = useRef<THREE.Group | null>(null);
-  const baseGiratoriaCilindroRef = useRef<THREE.Mesh | null>(null);
+  const baseGiratoriaRef = useRef<THREE.Group | null>(null);
   const ejeVerticalRef = useRef<THREE.Group | null>(null);
   const brazoExtensibleRef = useRef<THREE.Group | null>(null);
   const workspaceRef = useRef<THREE.Mesh | null>(null);
@@ -43,7 +43,7 @@ export const VisualizadorRobot: React.FC = () => {
       0.1, 
       1000
     );
-    camera.position.set(10, 10, 10);
+    camera.position.set(3, 3, 3);
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
     
@@ -59,8 +59,8 @@ export const VisualizadorRobot: React.FC = () => {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.minDistance = 5;
-    controls.maxDistance = 30;
+    controls.minDistance = 2;
+    controls.maxDistance = 10;
     controlsRef.current = controls;
     
     // Iluminación
@@ -81,7 +81,7 @@ export const VisualizadorRobot: React.FC = () => {
     scene.add(directionalLight);
     
     // Plano del suelo
-    const planoGeometria = new THREE.PlaneGeometry(20, 20);
+    const planoGeometria = new THREE.PlaneGeometry(10, 10);
     const planoMaterial = new THREE.MeshStandardMaterial({ 
       color: 0xcccccc,
       roughness: 0.8,
@@ -93,10 +93,10 @@ export const VisualizadorRobot: React.FC = () => {
     scene.add(plano);
     
     // Rejilla y ejes para referencia
-    const gridHelper = new THREE.GridHelper(20, 20, 0x555555, 0x888888);
+    const gridHelper = new THREE.GridHelper(10, 10, 0x555555, 0x888888);
     scene.add(gridHelper);
     
-    const axesHelper = new THREE.AxesHelper(5);
+    const axesHelper = new THREE.AxesHelper(2);
     scene.add(axesHelper);
     
     // Crear el modelo del robot
@@ -106,7 +106,7 @@ export const VisualizadorRobot: React.FC = () => {
     const workspaceGeometry = new THREE.CylinderGeometry(
       parametros.longitudBrazo,
       parametros.longitudBrazo,
-      parametros.alturaMaxima,
+      parametros.alturaMaxima - parametros.longitudBase,
       32,
       1,
       true
@@ -119,7 +119,7 @@ export const VisualizadorRobot: React.FC = () => {
       wireframe: true
     });
     const workspace = new THREE.Mesh(workspaceGeometry, workspaceMaterial);
-    workspace.position.y = parametros.alturaMaxima / 2;
+    workspace.position.y = (parametros.alturaMaxima - parametros.longitudBase) / 2 + parametros.longitudBase;
     workspace.visible = false;
     scene.add(workspace);
     workspaceRef.current = workspace;
@@ -158,7 +158,7 @@ export const VisualizadorRobot: React.FC = () => {
     const baseGeometria = new THREE.CylinderGeometry(
       parametros.radioBase * 1.2,
       parametros.radioBase * 1.4,
-      0.3,
+      0.1,
       32
     );
     const baseMaterial = new THREE.MeshStandardMaterial({
@@ -167,7 +167,7 @@ export const VisualizadorRobot: React.FC = () => {
       metalness: 0.3
     });
     const baseFija = new THREE.Mesh(baseGeometria, baseMaterial);
-    baseFija.position.y = 0.15;
+    baseFija.position.y = 0.05;
     baseFija.castShadow = true;
     baseFija.receiveShadow = true;
     robotGrupo.add(baseFija);
@@ -175,11 +175,12 @@ export const VisualizadorRobot: React.FC = () => {
     // Base giratoria
     const baseGiratoriaGrupo = new THREE.Group();
     robotGrupo.add(baseGiratoriaGrupo);
+    baseGiratoriaRef.current = baseGiratoriaGrupo;
     
     const baseGiratoriaGeometria = new THREE.CylinderGeometry(
       parametros.radioBase,
       parametros.radioBase,
-      0.4,
+      0.2,
       32
     );
     const baseGiratoriaMaterial = new THREE.MeshStandardMaterial({
@@ -191,19 +192,18 @@ export const VisualizadorRobot: React.FC = () => {
       baseGiratoriaGeometria,
       baseGiratoriaMaterial
     );
-    baseGiratoriaCilindro.position.y = 0.5;
+    baseGiratoriaCilindro.position.y = 0.2;
     baseGiratoriaCilindro.castShadow = true;
     baseGiratoriaCilindro.receiveShadow = true;
     baseGiratoriaGrupo.add(baseGiratoriaCilindro);
-    baseGiratoriaCilindroRef.current = baseGiratoriaCilindro;
     
     // Eje vertical (columna)
     const ejeVerticalGrupo = new THREE.Group();
-    ejeVerticalGrupo.position.y = 0.7;
+    ejeVerticalGrupo.position.y = 0.3;
     baseGiratoriaGrupo.add(ejeVerticalGrupo);
     ejeVerticalRef.current = ejeVerticalGrupo;
     
-    const columnaGeometria = new THREE.CylinderGeometry(0.2, 0.2, 1, 16);
+    const columnaGeometria = new THREE.CylinderGeometry(0.1, 0.1, 1, 16);
     const columnaMaterial = new THREE.MeshStandardMaterial({
       color: 0x95a5a6,
       roughness: 0.4,
@@ -222,7 +222,7 @@ export const VisualizadorRobot: React.FC = () => {
     brazoExtensibleRef.current = brazoGrupo;
     
     // Articulación del brazo
-    const articulacionGeometria = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+    const articulacionGeometria = new THREE.BoxGeometry(0.2, 0.2, 0.2);
     const articulacionMaterial = new THREE.MeshStandardMaterial({
       color: 0xe74c3c,
       roughness: 0.5,
@@ -234,7 +234,7 @@ export const VisualizadorRobot: React.FC = () => {
     brazoGrupo.add(articulacion);
     
     // Brazo extensible
-    const brazoGeometria = new THREE.BoxGeometry(0.2, 0.2, 1);
+    const brazoGeometria = new THREE.BoxGeometry(0.1, 0.1, 1);
     const brazoMaterial = new THREE.MeshStandardMaterial({
       color: 0x3498db,
       roughness: 0.4,
@@ -247,7 +247,7 @@ export const VisualizadorRobot: React.FC = () => {
     brazoGrupo.add(brazo);
     
     // Efector final
-    const efectorGeometria = new THREE.SphereGeometry(0.1, 16, 16);
+    const efectorGeometria = new THREE.SphereGeometry(0.05, 16, 16);
     const efectorMaterial = new THREE.MeshStandardMaterial({
       color: 0xf1c40f,
       roughness: 0.3,
@@ -262,33 +262,32 @@ export const VisualizadorRobot: React.FC = () => {
   
   // Actualiza el modelo del robot cuando cambian las articulaciones
   useEffect(() => {
-    if (!baseGiratoriaCilindroRef.current || !ejeVerticalRef.current || !brazoExtensibleRef.current) return;
+    if (!baseGiratoriaRef.current || !ejeVerticalRef.current || !brazoExtensibleRef.current) return;
     
     // Rotación de la base (theta)
     const theta = articulaciones[0].valorActual * Math.PI / 180;
-    baseGiratoriaCilindroRef.current.rotation.y = theta;
+    baseGiratoriaRef.current.rotation.y = theta;
     
     // Elevación vertical (z)
     const z = articulaciones[1].valorActual;
     if (ejeVerticalRef.current) {
-      ejeVerticalRef.current.scale.y = z + 1; // +1 para mantener una altura mínima
-      ejeVerticalRef.current.position.y = 0.7 + z / 2;
+      const alturaColumna = z;
+      ejeVerticalRef.current.children[0].scale.y = alturaColumna;
+      ejeVerticalRef.current.children[0].position.y = alturaColumna / 2;
+      
+      if (brazoExtensibleRef.current) {
+        brazoExtensibleRef.current.position.y = alturaColumna;
+      }
     }
     
     // Extensión del brazo (r)
     const r = articulaciones[2].valorActual;
     if (brazoExtensibleRef.current) {
-      brazoExtensibleRef.current.position.y = z;
-      brazoExtensibleRef.current.children.forEach((child, index) => {
-        if (index === 1) { // El brazo extensible
-          (child as THREE.Mesh).scale.z = r;
-          (child as THREE.Mesh).position.z = r / 2;
-        } else if (index === 2) { // El efector final
-          child.position.z = r;
-        }
-      });
+      brazoExtensibleRef.current.children[1].scale.z = r;
+      brazoExtensibleRef.current.children[1].position.z = r / 2;
+      brazoExtensibleRef.current.children[2].position.z = r;
     }
-  }, [articulaciones, parametros]);
+  }, [articulaciones]);
   
   // Actualiza la visualización del espacio de trabajo
   useEffect(() => {
@@ -298,13 +297,14 @@ export const VisualizadorRobot: React.FC = () => {
     const newGeometry = new THREE.CylinderGeometry(
       parametros.longitudBrazo,
       parametros.longitudBrazo,
-      parametros.alturaMaxima,
+      parametros.alturaMaxima - parametros.longitudBase,
       32,
       1,
       true
     );
     workspaceRef.current.geometry.dispose();
     workspaceRef.current.geometry = newGeometry;
+    workspaceRef.current.position.y = (parametros.alturaMaxima - parametros.longitudBase) / 2 + parametros.longitudBase;
     
   }, [mostrarWorkspace, parametros]);
   
