@@ -3,7 +3,6 @@ import { Coordenadas } from '../models/Coordenadas';
 import { Articulacion } from '../models/Articulacion';
 import { ParametrosCinematica } from '../models/ParametrosCinematica';
 
-// Definición del contexto del simulador
 interface SimuladorContextType {
   articulaciones: Articulacion[];
   coordenadas: Coordenadas;
@@ -20,24 +19,21 @@ interface SimuladorContextType {
   reiniciarSimulador: () => void;
 }
 
-// Valores iniciales ajustados según especificaciones
 const parametrosIniciales: ParametrosCinematica = {
-  longitudBase: 0.3, // Altura mínima del eje vertical
-  longitudBrazo: 1.7, // Extensión máxima del brazo
-  radioBase: 0.4, // Radio de la base
-  alturaMaxima: 1.3 // Altura máxima del eje vertical
+  longitudBase: 0.1,    // Altura inicial del eje vertical
+  longitudBrazo: 0.6,   // Extensión máxima del brazo
+  radioBase: 0.15,      // Radio de la base
+  alturaMaxima: 0.5     // Altura máxima del eje vertical
 };
 
 const articulacionesIniciales: Articulacion[] = [
-  new Articulacion(0, 'rotacional', 0, -180, 180),    // Base rotacional (theta)
-  new Articulacion(1, 'lineal', 0.3, 0.3, 1.3),      // Elevación (z)
-  new Articulacion(2, 'lineal', 0.3, 0.3, 1.7)       // Extensión (r)
+  new Articulacion(0, 'rotacional', 0, -180, 180),   // Base rotacional (theta)
+  new Articulacion(1, 'lineal', 0.1, 0.1, 0.5),      // Elevación (z)
+  new Articulacion(2, 'lineal', 0.1, 0.1, 0.6)       // Extensión (r)
 ];
 
-// Crear contexto
 const SimuladorContext = createContext<SimuladorContextType | undefined>(undefined);
 
-// Hook personalizado para usar el contexto
 export const useSimulador = () => {
   const context = useContext(SimuladorContext);
   if (!context) {
@@ -46,7 +42,6 @@ export const useSimulador = () => {
   return context;
 };
 
-// Provider del contexto
 export const SimuladorProvider = ({ children }: { children: ReactNode }) => {
   const [articulaciones, setArticulaciones] = useState<Articulacion[]>(articulacionesIniciales);
   const [parametros, setParametros] = useState<ParametrosCinematica>(parametrosIniciales);
@@ -56,12 +51,11 @@ export const SimuladorProvider = ({ children }: { children: ReactNode }) => {
     [0, 0, 1, 0],
     [0, 0, 0, 1]
   ]);
-  const [coordenadas, setCoordenadas] = useState<Coordenadas>(new Coordenadas(0.3, 0, 0.3));
+  const [coordenadas, setCoordenadas] = useState<Coordenadas>(new Coordenadas(0.1, 0, 0.1));
   const [mostrarMatrices, setMostrarMatrices] = useState(false);
   const [mostrarCoordenadas, setMostrarCoordenadas] = useState(true);
   const [mostrarWorkspace, setMostrarWorkspace] = useState(false);
 
-  // Actualizar una articulación específica
   const actualizarArticulacion = (id: number, valor: number) => {
     setArticulaciones(prevState => {
       const nuevasArticulaciones = [...prevState];
@@ -75,7 +69,6 @@ export const SimuladorProvider = ({ children }: { children: ReactNode }) => {
     calcularCinematicaDirecta();
   };
 
-  // Calcular cinemática directa
   const calcularCinematicaDirecta = () => {
     const theta = articulaciones[0].valorActual * Math.PI / 180;
     const z = articulaciones[1].valorActual;
